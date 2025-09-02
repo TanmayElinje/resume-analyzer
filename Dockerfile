@@ -4,8 +4,8 @@ FROM python:3.9-slim
 # Set the working directory inside the container
 WORKDIR /app
 
-# Create the cache directory
-RUN mkdir -p /app/cache
+# Create the cache directory and set its permissions
+RUN mkdir -p /app/cache && chown -R 1000:1000 /app/cache
 
 # Set the cache directory for Hugging Face models to a writable location
 ENV HF_HOME=/app/cache
