@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-lora { font-family: 'Lora', serif; }
+        .tab-btn { transition: all 0.3s ease; border-bottom-width: 2px; border-color: transparent; padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 500;}
+        .tab-btn.active { border-color: #0d9488; color: #0f766e; } /* Teal */
+        .result-tab { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-color: transparent; border-bottom-width: 2px; padding: 1rem 1.5rem; font-size: 0.875rem; line-height: 1.25rem; font-weight: 500; color: #64748b; border-color: transparent; cursor: pointer; }
+        .result-tab:hover { border-color: #cbd5e1; color: #475569; }
+        .result-tab.active { border-color: #0d9488; color: #0f766e; } /* Teal */
+        .highlight-match { background-color: #A7F3D0; padding: 2px 1px; border-radius: 3px; color: #064e3b; }
+        .text-container {
+            white-space: pre-wrap; max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0;
+            padding: 12px; border-radius: 8px; background-color: #f8fafc; font-family: monospace; font-size: 13px;
+        }
+    </style>
+</head>
+<body class="bg-sky-100 text-sky-800">
+
+    <div class="container mx-auto px-4 py-8 md:py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-5xl md:text-6xl font-bold text-stone-900 font-lora">CareerLens AI</h1>
+            <p class="mt-4 text-xl text-stone-700">See your resume through the eyes of an AI recruiter.</p>
+            <p class="mt-2 text-base text-stone-500">Get an instant ATS score and intelligent feedback.</p>
+        </header>
+
+        <main class="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg border-t-4 border-teal-600">
+            <form id="analyzerForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="mb-4 flex border-b border-slate-200 space-x-8">
+                            <button type="button" id="paste-tab" class="tab-btn active">Paste Text</button>
+                            <button type="button" id="upload-tab" class="tab-btn">Upload PDF</button>
+                        </div>
+                        <div id="paste-content">
+                            <textarea id="resume" name="resume" rows="14" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white" placeholder="Paste the full text of your resume here..."></textarea>
+                        </div>
+                        <div id="upload-content" class="hidden">
+                             <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                    <div class="flex text-sm text-slate-600">
+                                        <label for="resume-file" class="relative cursor-pointer bg-white rounded-md font-medium text-teal-600 hover:text-teal-500">
+                                            <span>Upload a file</span>
+                                            <input id="resume-file" name="resume-file" type="file" class="sr-only" accept=".pdf">
+                                        </label>
+                                        <p class="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p class="text-xs text-slate-500">PDF only</p>
+                                </div>
+                            </div>
+                            <p id="file-name-display" class="text-center text-sm text-slate-600 mt-2 h-5"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="jd" class="block text-sm font-medium text-slate-700 mb-2">Paste the Job Description</label>
+                        <textarea id="jd" name="jd" rows="15" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white" placeholder="Paste the full job description here..."></textarea>
+                    </div>
+                </div>
+                <div class="mt-8 text-center">
+                    <button type="submit" id="submitBtn" class="bg-teal-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-teal-700 disabled:opacity-50">Analyze My Resume</button>
+                </div>
+            </form>
+        </main>
+        
+        <div id="results" class="max-w-4xl mx-auto mt-10 bg-white rounded-2xl shadow-lg hidden">
+            </div>
+        
+        <section class="max-w-4xl mx-auto mt-10">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">Analysis History</h2>
+            <div id="history-list" class="space-y-4">
+                {% if history %}
+                    {% for item in history %}
+                    <div class="bg-white p-4 rounded-lg shadow-md border border-slate-200 flex items-center justify-between">
+                        <div class="flex items-center">
+                             <div class="flex-shrink-0 mr-4">
+                                <div class="relative w-16 h-16 inline-flex items-center justify-center">
+                                    <svg class="w-full h-full"><circle class="text-slate-200" stroke-width="6" stroke="currentColor" fill="transparent" r="26" cx="50%" cy="50%"/><circle class="text-teal-600" stroke-width="6" stroke-linecap="round" stroke="currentColor" fill="transparent" r="26" cx="50%" cy="50%" style="stroke-dasharray: 163.36; stroke-dashoffset: {{ 163.36 * (1 - item['score'] / 100) }};" transform="rotate(-90 32 32)" /></svg>
+                                    <span class="absolute text-xl font-bold text-teal-800">{{ item['score'] }}%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-slate-700">Job Preview: <span class="font-normal italic">"{{ item['jd_preview'] }}"</span></p>
+                                <p class="text-sm text-slate-500">Analyzed on: {{ item['analyzed_at'].split('.')[0] }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                           <p class="text-sm text-green-600">Matched: {{ item['matched_count'] }}</p>
+                           <p class="text-sm text-red-600">Missing: {{ item['missing_count'] }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div id="no-history-message" class="bg-white p-6 rounded-lg shadow-md border border-slate-200 text-center text-slate-500">
+                        <p>No analyses yet. Your past results will appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let allTechnicalSuggestions = [], allRewriteSuggestions = [], currentSuggestionIndex = 0, currentAnalysisResult = null;
+        const BATCH_SIZE = 3;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const pasteTab = document.getElementById('paste-tab');
+            const uploadTab = document.getElementById('upload-tab');
+            const pasteContent = document.getElementById('paste-content');
+            const uploadContent = document.getElementById('upload-content');
+            const resumeFileInput = document.getElementById('resume-file');
+            const fileNameDisplay = document.getElementById('file-name-display');
+            const analyzerForm = document.getElementById('analyzerForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const resultsDiv = document.getElementById('results');
+            
+            resultsDiv.addEventListener('click', function(event) {
+                const target = event.target.closest('button');
+                if (!target) return;
+                if (target.id === 'more-suggestions-btn') displayNextSuggestions();
+                if (target.classList.contains('result-tab')) switchTab(target);
+                if (target.id === 'download-report-btn') downloadReport();
+            });
+
+            pasteTab.addEventListener('click', () => {
+                pasteTab.classList.add('active');
+                uploadTab.classList.remove('active');
+                pasteContent.classList.remove('hidden');
+                uploadContent.classList.add('hidden');
+                resumeFileInput.value = '';
+                fileNameDisplay.textContent = '';
+            });
+
+            uploadTab.addEventListener('click', () => {
+                uploadTab.classList.add('active');
+                pasteTab.classList.remove('active');
+                uploadContent.classList.remove('hidden');
+                pasteContent.classList.add('hidden');
+            });
+            
+            resumeFileInput.addEventListener('change', () => {
+                fileNameDisplay.textContent = resumeFileInput.files.length > 0 ? `Selected: ${resumeFileInput.files[0].name}` : '';
+            });
+            
+            analyzerForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Analyzing...`;
+                resultsDiv.classList.add('hidden');
+                const formData = new FormData(analyzerForm);
+
+                try {
+                    const response = await fetch('/analyze', { method: 'POST', body: formData });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || 'An unknown error occurred.');
+                    
+                    renderResults(result);
+                    prependHistoryItem(result);
+                    window.scrollTo({ top: resultsDiv.offsetTop - 20, behavior: 'smooth' });
+                } catch (error) {
+                    resultsDiv.innerHTML = `<div class="p-6 md:p-8"><h2 class="text-2xl font-bold text-center mb-6">Analysis Failed</h2><div class="text-center text-red-600 p-4 bg-red-100 rounded-lg">${error.message}</div></div>`;
+                    resultsDiv.classList.remove('hidden');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Analyze My Resume';
+                }
+            });
+        });
+
+        function prependHistoryItem(data) {
+            const historyList = document.getElementById('history-list');
+            const noHistoryMessage = document.getElementById('no-history-message');
+            if (noHistoryMessage) noHistoryMessage.remove();
+            
+            const jdInput = document.getElementById('jd');
+            let jdPreview = jdInput.value.substring(0, 75) + (jdInput.value.length > 75 ? '...' : '');
+            const now = new Date();
+            const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+            const newItemHTML = `
+                <div class="bg-white p-4 rounded-lg shadow-md border border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center">
+                         <div class="flex-shrink-0 mr-4">
+                            <div class="relative w-16 h-16 inline-flex items-center justify-center">
+                                <svg class="w-full h-full"><circle class="text-slate-200" stroke-width="6" stroke="currentColor" fill="transparent" r="26" cx="50%" cy="50%"/><circle class="text-teal-600" stroke-width="6" stroke-linecap="round" stroke="currentColor" fill="transparent" r="26" cx="50%" cy="50%" style="stroke-dasharray: 163.36; stroke-dashoffset: ${163.36 * (1 - data.score / 100)};" transform="rotate(-90 32 32)" /></svg>
+                                <span class="absolute text-xl font-bold text-teal-800">${data.score}%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-700">Job Preview: <span class="font-normal italic">"${jdPreview}"</span></p>
+                            <p class="text-sm text-slate-500">Analyzed on: ${formattedDate}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                       <p class="text-sm text-green-600">Matched: ${data.matched_keywords.length}</p>
+                       <p class="text-sm text-red-600">Missing: ${data.missing_keywords.length}</p>
+                    </div>
+                </div>`;
+            historyList.insertAdjacentHTML('afterbegin', newItemHTML);
+        }
+        
+        function switchTab(clickedTab) {
+            const tabsContainer = document.getElementById('results-tabs');
+            if (!tabsContainer) return;
+            tabsContainer.querySelectorAll('.result-tab').forEach(tab => tab.classList.remove('active'));
+            clickedTab.classList.add('active');
+            const tabName = clickedTab.dataset.tab;
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.id === `${tabName}-content` ? content.classList.remove('hidden') : content.classList.add('hidden');
+            });
+        }
+
+        function displayNextSuggestions() {
+            const techContainer = document.getElementById('technical-suggestions');
+            const rewriteContainer = document.getElementById('rewrite-suggestions');
+            const moreBtn = document.getElementById('more-suggestions-btn');
+            if (!techContainer || !rewriteContainer || !moreBtn) return;
+
+            const nextTech = allTechnicalSuggestions.slice(currentSuggestionIndex, currentSuggestionIndex + BATCH_SIZE);
+            const nextRewrites = allRewriteSuggestions.slice(currentSuggestionIndex, currentSuggestionIndex + BATCH_SIZE);
+
+            if (nextTech.length > 0 && techContainer.children.length === 0) {
+                 techContainer.innerHTML += `<h4 class="font-medium text-slate-500 text-sm uppercase tracking-wider mt-2">Technical & Skill Gaps</h4>`;
+            }
+            nextTech.forEach(s => {
+                const formattedSuggestion = s.replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/^([^:]+):/, '<strong><em>$1</em></strong>:');
+                techContainer.innerHTML += `<li class="list-disc list-inside ml-4">${formattedSuggestion}</li>`;
+            });
+
+            if (nextRewrites.length > 0 && rewriteContainer.children.length === 0) {
+                 rewriteContainer.innerHTML += `<h4 class="font-medium text-slate-500 text-sm uppercase tracking-wider mt-4">Resume Phrasing</h4>`;
+            }
+            nextRewrites.forEach(s => {
+                const formattedSuggestion = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                rewriteContainer.innerHTML += `<li class="list-disc list-inside ml-4">${formattedSuggestion}</li>`;
+            });
+            
+            currentSuggestionIndex += BATCH_SIZE;
+
+            if (currentSuggestionIndex >= allTechnicalSuggestions.length && currentSuggestionIndex >= allRewriteSuggestions.length) {
+                moreBtn.classList.add('hidden');
+            } else {
+                moreBtn.classList.remove('hidden');
+            }
+        }
+
+        function downloadReport() {
+            if (!currentAnalysisResult) {
+                alert("No analysis data available to download.");
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(22);
+            doc.text("Resume Analysis Report", 105, 20, { align: "center" });
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Report generated on: ${new Date().toLocaleDateString()}`, 105, 28, { align: "center" });
+            let yPosition = 45;
+            doc.setFontSize(16);
+            doc.text("ATS Compatibility Score", 20, yPosition);
+            yPosition += 8;
+            doc.setFontSize(20);
+            doc.setTextColor(15, 118, 110); // Teal color
+            doc.text(`${currentAnalysisResult.score}%`, 20, yPosition);
+            doc.setTextColor(0);
+            yPosition += 15;
+            const addSection = (title, items) => {
+                if (!items || items.length === 0) return;
+                if (yPosition > 260) { doc.addPage(); yPosition = 20; }
+                doc.setFontSize(14);
+                doc.text(title, 20, yPosition);
+                yPosition += 8;
+                doc.setFontSize(10);
+                items.forEach(item => {
+                    if (yPosition > 280) { doc.addPage(); yPosition = 20; }
+                    const lines = doc.splitTextToSize(`- ${item}`, 170);
+                    doc.text(lines, 25, yPosition);
+                    yPosition += (lines.length * 5) + 2;
+                });
+                yPosition += 5;
+            };
+            addSection("Matched Skills", currentAnalysisResult.matched_keywords);
+            addSection("Missing Skills", currentAnalysisResult.missing_keywords);
+            const visibleTechSuggestions = Array.from(document.querySelectorAll('#technical-suggestions li')).map(li => li.textContent);
+            const visibleRewriteSuggestions = Array.from(document.querySelectorAll('#rewrite-suggestions li')).map(li => li.textContent);
+            addSection("Technical & Skill Gaps Suggestions", visibleTechSuggestions);
+            addSection("Resume Phrasing Suggestions", visibleRewriteSuggestions);
+            doc.save("Resume_Analysis_Report.pdf");
+        }
+
+        function renderResults(data) {
+            currentAnalysisResult = data;
+            allTechnicalSuggestions = data.suggestions.technical || [];
+            allRewriteSuggestions = data.suggestions.rewrites || [];
+            currentSuggestionIndex = 0;
+
+            const resultsDiv = document.getElementById('results');
+            
+            const mainLayoutHTML = `
+                <div class="p-6 md:p-8">
+                    <div class="border-b border-slate-200">
+                        <nav id="results-tabs" class="flex -mb-px" aria-label="Tabs">
+                            <button class="result-tab" data-tab="overview">Overview</button>
+                            <button class="result-tab" data-tab="suggestions">AI Suggestions</button>
+                            <button class="result-tab" data-tab="keywords">Keyword Analysis</button>
+                        </nav>
+                    </div>
+                    <div class="py-6">
+                        <div id="overview-content" class="tab-content hidden"></div>
+                        <div id="suggestions-content" class="tab-content hidden"></div>
+                        <div id="keywords-content" class="tab-content hidden"></div>
+                    </div>
+                </div>`;
+            resultsDiv.innerHTML = mainLayoutHTML;
+            resultsDiv.classList.remove('hidden');
+
+            const overviewContainer = document.getElementById('overview-content');
+            const suggestionsContainer = document.getElementById('suggestions-content');
+            const keywordsContainer = document.getElementById('keywords-content');
+
+            // 1. Overview Content
+            const scoreHTML = `<div class="text-center mb-8"><p class="text-lg font-medium text-slate-600 mb-2">ATS Compatibility Score</p><div class="relative w-40 h-40 inline-flex items-center justify-center"><svg class="w-full h-full"><circle class="text-slate-200" stroke-width="10" stroke="currentColor" fill="transparent" r="58" cx="50%" cy="50%"/><circle class="text-teal-600" stroke-width="10" stroke-linecap="round" stroke="currentColor" fill="transparent" r="58" cx="50%" cy="50%" style="stroke-dasharray: 364.4; stroke-dashoffset: ${364.4 * (1 - data.score / 100)};" transform="rotate(-90 80 80)" /></svg><span class="absolute text-4xl font-bold text-teal-800">${data.score}%</span></div></div>`;
+            const downloadButtonHTML = `<div class="text-center"><button id="download-report-btn" class="bg-slate-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-slate-700">Download Report</button></div>`;
+            overviewContainer.innerHTML = scoreHTML + downloadButtonHTML;
+
+            // 2. Suggestions Content
+            suggestionsContainer.innerHTML = `
+                <div id="technical-suggestions" class="space-y-2 text-slate-700"></div>
+                <div id="rewrite-suggestions" class="mt-4 space-y-2 text-slate-700"></div>
+                <div class="text-center mt-6">
+                    <button id="more-suggestions-btn" class="hidden bg-slate-200 text-slate-700 font-semibold py-2 px-6 rounded-lg hover:bg-slate-300">More Suggestions</button>
+                </div>`;
+            displayNextSuggestions();
+
+            // 3. Keywords Content
+            const keywordsHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="font-semibold text-lg mb-3 text-green-700">Matched Skills (${data.matched_keywords.length})</h3><div class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">${data.matched_keywords.map(kw => `<span class="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">${kw}</span>`).join('') || '<p class="text-slate-500 text-sm">No skills matched.</p>'}</div></div><div><h3 class="font-semibold text-lg mb-3 text-red-700">Missing Skills (${data.missing_keywords.length})</h3><div class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">${data.missing_keywords.map(kw => `<span class="bg-red-100 text-red-800 text-sm font-medium px-3 py-1 rounded-full">${kw}</span>`).join('') || '<p class="text-slate-500 text-sm">No skills found.</p>'}</div></div></div>`;
+            keywordsContainer.innerHTML = keywordsHTML;
+            
+            // Activate the first tab by default
+            switchTab(document.querySelector('.result-tab'));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Virtual Environment
+venv/
+
+# Database file
+analyzer.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE settings folders (optional but good practice)
+.vscode/
+.idea/
